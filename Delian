@@ -1,0 +1,603 @@
+
+--========================================================
+-- MADE BY DELIAN
+-- CINEMATIC INTRO + SAFE + LAST STAGE + INSTANT EGG PICKUP
+-- CLIENT ONLY | EGG PROMPT LOOP: 0.1 SECONDS
+--========================================================
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local GUI_NAME = "DelianTeleportGUI"
+
+local LOCATIONS = {
+    Safe = Vector3.new(-87.71, 3.90, -172.38),
+    ["Last Stage"] = Vector3.new(-93.86, 13281.26, 50.03),
+}
+
+local RED = Color3.fromRGB(235, 45, 65)
+local BLUE = Color3.fromRGB(40, 125, 255)
+local CYAN = Color3.fromRGB(0, 230, 255)
+local PURPLE = Color3.fromRGB(145, 65, 255)
+local WHITE = Color3.fromRGB(245, 250, 255)
+
+-- Remove previous copy
+local old = playerGui:FindFirstChild(GUI_NAME)
+if old then
+    old:Destroy()
+end
+
+local alive = true
+local introActive = true
+local connections = {}
+
+local function connect(signal, callback)
+    local connection = signal:Connect(callback)
+    table.insert(connections, connection)
+    return connection
+end
+
+local function tween(object, duration, properties, style, direction)
+    local animation = TweenService:Create(
+        object,
+        TweenInfo.new(
+            duration,
+            style or Enum.EasingStyle.Quad,
+            direction or Enum.EasingDirection.Out
+        ),
+        properties
+    )
+    animation:Play()
+    return animation
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = GUI_NAME
+gui.IgnoreGuiInset = true
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 1000000
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = playerGui
+
+--========================================================
+-- CINEMATIC INTRO
+--========================================================
+
+local intro = Instance.new("Frame")
+intro.Name = "CinematicIntro"
+intro.Size = UDim2.fromScale(1, 1)
+intro.BackgroundColor3 = Color3.fromRGB(2, 3, 12)
+intro.BorderSizePixel = 0
+intro.ZIndex = 100
+intro.Parent = gui
+
+local bgGradient = Instance.new("UIGradient")
+bgGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(2, 5, 20)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(14, 5, 35)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(1, 10, 24)),
+})
+bgGradient.Rotation = 35
+bgGradient.Parent = intro
+
+local atmosphere = Instance.new("Frame")
+atmosphere.AnchorPoint = Vector2.new(0.5, 0.5)
+atmosphere.Position = UDim2.fromScale(0.5, 0.47)
+atmosphere.Size = UDim2.new(0.95, 0, 0, 100)
+atmosphere.BackgroundColor3 = BLUE
+atmosphere.BackgroundTransparency = 0.83
+atmosphere.BorderSizePixel = 0
+atmosphere.ZIndex = 101
+atmosphere.Parent = intro
+
+local atmosphereGradient = Instance.new("UIGradient")
+atmosphereGradient.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 1),
+    NumberSequenceKeypoint.new(0.5, 0.05),
+    NumberSequenceKeypoint.new(1, 1),
+})
+atmosphereGradient.Parent = atmosphere
+
+-- Energy rings
+for i = 1, 3 do
+    local ring = Instance.new("Frame")
+    ring.Name = "EnergyRing" .. i
+    ring.AnchorPoint = Vector2.new(0.5, 0.5)
+    ring.Position = UDim2.fromScale(0.5, 0.45)
+    ring.Size = UDim2.fromOffset(80 + i * 28, 80 + i * 28)
+    ring.BackgroundTransparency = 1
+    ring.BorderSizePixel = 0
+    ring.ZIndex = 101
+    ring.Parent = intro
+
+    Instance.new("UICorner", ring).CornerRadius = UDim.new(1, 0)
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = i % 2 == 0 and PURPLE or CYAN
+    stroke.Thickness = i == 1 and 2 or 1
+    stroke.Transparency = 0.3
+    stroke.Parent = ring
+
+    task.spawn(function()
+        while alive and introActive and ring.Parent do
+            local animation = tween(ring, 3, {
+                Rotation = ring.Rotation + (i % 2 == 0 and -180 or 180),
+                Size = UDim2.fromOffset(115 + i * 35, 115 + i * 35),
+            }, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+
+            animation.Completed:Wait()
+            if not alive or not introActive then break end
+
+            tween(ring, 0.35, {
+                Size = UDim2.fromOffset(80 + i * 28, 80 + i * 28),
+            })
+            task.wait(0.35)
+        end
+    end)
+end
+
+-- Floating particles
+local palette = {CYAN, PURPLE, BLUE, WHITE}
+
+for i = 1, 22 do
+    local particle = Instance.new("Frame")
+    local size = math.random(2, 5)
+
+    particle.Name = "Particle"
+    particle.Size = UDim2.fromOffset(size, size)
+    particle.Position = UDim2.fromScale(
+        math.random(3, 97) / 100,
+        math.random(5, 95) / 100
+    )
+    particle.BackgroundColor3 = palette[math.random(1, #palette)]
+    particle.BackgroundTransparency = 0.2
+    particle.BorderSizePixel = 0
+    particle.ZIndex = 102
+    particle.Parent = intro
+
+    Instance.new("UICorner", particle).CornerRadius = UDim.new(1, 0)
+
+    task.spawn(function()
+        while alive and introActive and particle.Parent do
+            local animation = tween(particle, math.random(15, 30) / 10, {
+                Position = UDim2.fromScale(
+                    math.random(5, 95) / 100,
+                    math.random(5, 95) / 100
+                ),
+                BackgroundTransparency = math.random(15, 70) / 100,
+            }, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+
+            animation.Completed:Wait()
+        end
+    end)
+end
+
+-- Scanning beams
+for i = 1, 2 do
+    local beam = Instance.new("Frame")
+    beam.Name = "ScanBeam" .. i
+    beam.Size = UDim2.new(0.7, 0, 0, 2)
+    beam.Position = UDim2.new(0.15, 0, i == 1 and 0.32 or 0.65, 0)
+    beam.BackgroundColor3 = i == 1 and CYAN or PURPLE
+    beam.BorderSizePixel = 0
+    beam.ZIndex = 103
+    beam.Parent = intro
+
+    task.spawn(function()
+        while alive and introActive and beam.Parent do
+            local destination = i == 1 and 0.68 or 0.30
+            local animation = tween(beam, 1.6, {
+                Position = UDim2.new(0.15, 0, destination, 0),
+            }, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+
+            animation.Completed:Wait()
+            if not alive or not introActive then break end
+
+            destination = i == 1 and 0.32 or 0.65
+            local reverse = tween(beam, 1.6, {
+                Position = UDim2.new(0.15, 0, destination, 0),
+            }, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+
+            reverse.Completed:Wait()
+        end
+    end)
+end
+
+local title = Instance.new("TextLabel")
+title.Name = "MadeByDelian"
+title.AnchorPoint = Vector2.new(0.5, 0.5)
+title.Position = UDim2.fromScale(0.5, 0.45)
+title.Size = UDim2.new(1, -28, 0, 90)
+title.BackgroundTransparency = 1
+title.Text = ""
+title.TextColor3 = WHITE
+title.TextStrokeColor3 = CYAN
+title.TextStrokeTransparency = 0.1
+title.TextScaled = true
+title.Font = Enum.Font.Code
+title.ZIndex = 105
+title.Parent = intro
+
+local titleConstraint = Instance.new("UITextSizeConstraint")
+titleConstraint.MinTextSize = 19
+titleConstraint.MaxTextSize = 48
+titleConstraint.Parent = title
+
+local titleGradient = Instance.new("UIGradient")
+titleGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, CYAN),
+    ColorSequenceKeypoint.new(0.5, WHITE),
+    ColorSequenceKeypoint.new(1, PURPLE),
+})
+titleGradient.Parent = title
+
+local subtitle = Instance.new("TextLabel")
+subtitle.AnchorPoint = Vector2.new(0.5, 0.5)
+subtitle.Position = UDim2.fromScale(0.5, 0.56)
+subtitle.Size = UDim2.new(1, -30, 0, 28)
+subtitle.BackgroundTransparency = 1
+subtitle.Text = "INITIALIZING CINEMATIC SYSTEM"
+subtitle.TextColor3 = Color3.fromRGB(160, 195, 230)
+subtitle.TextSize = 12
+subtitle.Font = Enum.Font.Code
+subtitle.ZIndex = 105
+subtitle.Parent = intro
+
+local progressBack = Instance.new("Frame")
+progressBack.AnchorPoint = Vector2.new(0.5, 0.5)
+progressBack.Position = UDim2.fromScale(0.5, 0.65)
+progressBack.Size = UDim2.new(0.64, 0, 0, 5)
+progressBack.BackgroundColor3 = Color3.fromRGB(25, 30, 55)
+progressBack.BorderSizePixel = 0
+progressBack.ZIndex = 104
+progressBack.Parent = intro
+
+Instance.new("UICorner", progressBack).CornerRadius = UDim.new(1, 0)
+
+local progressFill = Instance.new("Frame")
+progressFill.Size = UDim2.fromScale(0, 1)
+progressFill.BackgroundColor3 = CYAN
+progressFill.BorderSizePixel = 0
+progressFill.ZIndex = 105
+progressFill.Parent = progressBack
+
+Instance.new("UICorner", progressFill).CornerRadius = UDim.new(1, 0)
+
+local status = Instance.new("TextLabel")
+status.AnchorPoint = Vector2.new(0.5, 0.5)
+status.Position = UDim2.fromScale(0.5, 0.70)
+status.Size = UDim2.new(1, -30, 0, 22)
+status.BackgroundTransparency = 1
+status.Text = "SYSTEM ONLINE  //  DELIAN"
+status.TextColor3 = Color3.fromRGB(100, 145, 190)
+status.TextSize = 10
+status.Font = Enum.Font.Code
+status.ZIndex = 105
+status.Parent = intro
+
+--========================================================
+-- SAFE / LAST STAGE TELEPORT GUI
+--========================================================
+
+local panel = Instance.new("Frame")
+panel.Name = "TeleportPanel"
+panel.AnchorPoint = Vector2.new(1, 0)
+panel.Position = UDim2.new(1, -16, 0, 65)
+panel.Size = UDim2.fromOffset(245, 174)
+panel.BackgroundColor3 = Color3.fromRGB(11, 16, 30)
+panel.BorderSizePixel = 0
+panel.Visible = false
+panel.ZIndex = 10
+panel.Parent = gui
+
+Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 16)
+
+local panelStroke = Instance.new("UIStroke")
+panelStroke.Color = Color3.fromRGB(75, 110, 170)
+panelStroke.Thickness = 1.5
+panelStroke.Parent = panel
+
+local header = Instance.new("TextButton")
+header.Name = "DragHeader"
+header.Size = UDim2.new(1, 0, 0, 43)
+header.BackgroundColor3 = Color3.fromRGB(23, 31, 54)
+header.BorderSizePixel = 0
+header.Text = "  DELIAN TELEPORT  ⠿"
+header.TextColor3 = WHITE
+header.TextSize = 15
+header.Font = Enum.Font.GothamBold
+header.TextXAlignment = Enum.TextXAlignment.Left
+header.AutoButtonColor = false
+header.Active = true
+header.ZIndex = 11
+header.Parent = panel
+
+Instance.new("UICorner", header).CornerRadius = UDim.new(0, 15)
+
+local headerCover = Instance.new("Frame")
+headerCover.Position = UDim2.new(0, 0, 1, -10)
+headerCover.Size = UDim2.new(1, 0, 0, 10)
+headerCover.BackgroundColor3 = header.BackgroundColor3
+headerCover.BorderSizePixel = 0
+headerCover.ZIndex = 11
+headerCover.Parent = header
+
+local function teleportTo(position)
+    local character = player.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+
+    if root then
+        root.CFrame = CFrame.new(position)
+    end
+end
+
+local function createButton(name, y, color)
+    local button = Instance.new("TextButton")
+    button.Name = name:gsub("%s+", "") .. "Button"
+    button.Position = UDim2.fromOffset(11, y)
+    button.Size = UDim2.new(1, -22, 0, 51)
+    button.BackgroundColor3 = color
+    button.BorderSizePixel = 0
+    button.Text = name == "Safe" and "SAFE" or "LAST STAGE"
+    button.TextColor3 = WHITE
+    button.TextSize = 17
+    button.Font = Enum.Font.GothamBold
+    button.AutoButtonColor = false
+    button.ZIndex = 12
+    button.Parent = panel
+
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 11)
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = WHITE
+    stroke.Transparency = 0.78
+    stroke.Parent = button
+
+    connect(button.Activated, function()
+        teleportTo(LOCATIONS[name])
+    end)
+
+    connect(button.MouseEnter, function()
+        tween(button, 0.15, {
+            BackgroundColor3 = color:Lerp(WHITE, 0.12),
+        })
+    end)
+
+    connect(button.MouseLeave, function()
+        tween(button, 0.15, {
+            BackgroundColor3 = color,
+        })
+    end)
+end
+
+createButton("Safe", 53, RED)
+createButton("Last Stage", 112, BLUE)
+
+-- Dragging with touch or mouse
+local dragging = false
+local dragInput
+local dragStart
+local startPosition
+
+local function clampPosition(x, y)
+    local camera = Workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize
+
+    if viewport then
+        x = math.clamp(x, 0, math.max(0, viewport.X - panel.AbsoluteSize.X))
+        y = math.clamp(y, 0, math.max(0, viewport.Y - panel.AbsoluteSize.Y))
+    end
+
+    return x, y
+end
+
+connect(header.InputBegan, function(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+        return
+    end
+
+    dragging = true
+    dragStart = input.Position
+    startPosition = panel.AbsolutePosition
+
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+connect(UserInputService.InputChanged, function(input)
+    if not dragging then return end
+
+    local mouseMove = input.UserInputType == Enum.UserInputType.MouseMovement
+    local touchMove = input.UserInputType == Enum.UserInputType.Touch
+        and input == dragInput
+
+    if not mouseMove and not touchMove then return end
+
+    local delta = input.Position - dragStart
+    local x, y = clampPosition(
+        startPosition.X + delta.X,
+        startPosition.Y + delta.Y
+    )
+
+    panel.AnchorPoint = Vector2.zero
+    panel.Position = UDim2.fromOffset(x, y)
+end)
+
+connect(UserInputService.InputEnded, function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input == dragInput then
+        dragging = false
+        dragInput = nil
+    end
+end)
+
+--========================================================
+-- INSTANT EGG PICKUP LOOP: EVERY 0.1 SECONDS
+--========================================================
+
+local function makeEggPickupInstant(instance)
+    if not instance:IsA("ProximityPrompt") then
+        return
+    end
+
+    local current = instance.Parent
+    local eggRelated = false
+
+    while current and current ~= Workspace do
+        if current.Name:lower():find("egg", 1, true) then
+            eggRelated = true
+            break
+        end
+        current = current.Parent
+    end
+
+    if not eggRelated then
+        return
+    end
+
+    instance.HoldDuration = 0
+    instance.RequiresLineOfSight = false
+end
+
+-- Recheck prompts continuously every 0.1 seconds
+task.spawn(function()
+    while alive do
+        for _, instance in ipairs(Workspace:GetDescendants()) do
+            if not alive then
+                break
+            end
+            makeEggPickupInstant(instance)
+        end
+
+        task.wait(0.1)
+    end
+end)
+
+-- Configure newly added prompts immediately
+connect(Workspace.DescendantAdded, makeEggPickupInstant)
+
+--========================================================
+-- INTRO TIMELINE: 10 SECONDS
+--========================================================
+
+task.spawn(function()
+    local startTime = os.clock()
+    local duration = 10
+    local decodeDuration = 6.5
+    local target = "MADE BY DELIAN"
+    local alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+    tween(progressFill, duration, {
+        Size = UDim2.fromScale(1, 1),
+    }, Enum.EasingStyle.Linear)
+
+    task.spawn(function()
+        while alive and introActive and intro.Parent do
+            titleGradient.Rotation = (titleGradient.Rotation + 1.5) % 360
+            task.wait(0.035)
+        end
+    end)
+
+    while alive and os.clock() - startTime < decodeDuration do
+        local progress = math.clamp(
+            (os.clock() - startTime) / decodeDuration,
+            0,
+            1
+        )
+
+        local revealed = math.floor(progress * #target)
+        local output = {}
+
+        for i = 1, #target do
+            local char = target:sub(i, i)
+
+            if char == " " or i <= revealed then
+                output[i] = char
+            else
+                local index = math.random(1, #alphabet)
+                output[i] = alphabet:sub(index, index)
+            end
+        end
+
+        title.Text = table.concat(output)
+        task.wait(0.045)
+    end
+
+    title.Text = target
+    subtitle.Text = "WELCOME, DELIAN"
+    status.Text = "ACCESS GRANTED  //  READY"
+
+    tween(title, 0.35, {TextStrokeTransparency = 0})
+
+    while alive and os.clock() - startTime < 9.4 do
+        task.wait(0.05)
+    end
+
+    if not alive then
+        return
+    end
+
+    local remaining = math.max(0, duration - (os.clock() - startTime))
+
+    local fadeObjects = {
+        intro, title, subtitle, status, progressBack, atmosphere,
+    }
+
+    for _, object in ipairs(fadeObjects) do
+        if object.Parent then
+            local properties = {}
+
+            if object:IsA("Frame") then
+                properties.BackgroundTransparency = 1
+            end
+
+            if object:IsA("TextLabel") then
+                properties.TextTransparency = 1
+                if object == title then
+                    properties.TextStrokeTransparency = 1
+                end
+            end
+
+            tween(object, remaining, properties)
+        end
+    end
+
+    for _, object in ipairs(intro:GetChildren()) do
+        if object:IsA("Frame") then
+            local stroke = object:FindFirstChildOfClass("UIStroke")
+            if stroke then
+                tween(stroke, remaining, {Transparency = 1})
+            end
+        end
+    end
+
+    task.wait(remaining)
+
+    introActive = false
+    intro:Destroy()
+
+    panel.Visible = true
+    panel.AnchorPoint = Vector2.new(1, 0)
+    panel.Position = UDim2.new(1, 260, 0, 65)
+
+    tween(panel, 0.45, {
+        Position = UDim2.new(1, -16, 0, 65),
+    }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+end)
+
+-- Cleanup
+connect(gui.Destroying, function()
+    alive = false
+    introActive = false
+
+    for _, connection in ipairs(connections) do
+        connection:Disconnect()
+    end
+end)
